@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON Data Visualizer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .controls {
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .file-upload {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f4ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: #e8edff;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            font-size: 1.1rem;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .filter-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-group label {
+            font-weight: 600;
+            color: #333;
+            font-size: 0.9rem;
+        }
+
+        .control-group select,
+        .control-group input {
+            padding: 10px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .control-group select:focus,
+        .control-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            padding: 30px;
+            background: #f8f9fa;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .chart-container {
+            padding: 30px;
+            position: relative;
+            height: 500px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 20px;
+            margin: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #c33;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: transform 0.2s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .data-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 30px;
+            background: #e8edff;
+            border-bottom: 1px solid #d0d7ff;
+        }
+
+        .data-info-text {
+            color: #333;
+            font-weight: 500;
+        }
+
+        .data-info-badge {
+            background: #667eea;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 JSON Data Visualizer</h1>
+            <p>Визуализация временных данных из JSON файлов</p>
+        </div>
+
+        <div class="controls">
+            <div class="file-upload">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📁</div>
+                    <div class="upload-text">Перетащите JSON файл сюда или нажмите для выбора</div>
+                    <div class="upload-hint">Поддерживаются файлы до 100MB</div>
+                    <input type="file" id="fileInput" accept=".json">
+                </div>
+
+                <div class="filter-controls" id="filterControls" style="display: none;">
+                    <div class="control-group">
+                        <label for="chartType">Тип графика</label>
+                        <select id="chartType">
+                            <option value="line">Линейный</option>
+                            <option value="bar">Столбчатый</option>
+                            <option value="scatter">Точечный</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="timeRange">Временной диапазон</label>
+                        <select id="timeRange">
+                            <option value="all">Все данные</option>
+                            <option value="hour">Последний час</option>
+                            <option value="day">Последний день</option>
+                            <option value="week">Последняя неделя</option>
+                            <option value="month">Последний месяц</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="aggregation">Агрегация</label>
+                        <select id="aggregation">
+                            <option value="none">Без агрегации</option>
+                            <option value="minute">По минутам</option>
+                            <option value="hour">По часам</option>
+                            <option value="day">По дням</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="dataField">Поле для анализа</label>
+                        <select id="dataField">
+                            <option value="count">Количество записей</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="dataInfo" style="display: none;"></div>
+        <div id="stats" style="display: none;"></div>
+        <div id="chartSection" style="display: none;">
+            <div class="chart-container">
+                <canvas id="mainChart"></canvas>
+            </div>
+        </div>
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Загрузка и обработка данных...</p>
+        </div>
+        <div id="error"></div>
+    </div>
+
+    <script>
+        let jsonData = [];
+        let chart = null;
+
+        // Upload area handlers
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) handleFile(file);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) handleFile(file);
+        });
+
+        async function handleFile(file) {
+            if (!file.name.endsWith('.json')) {
+                showError('Пожалуйста, выберите JSON файл');
+                return;
+            }
+
+            showLoading(true);
+            hideError();
+
+            try {
+                const text = await file.text();
+                let parsed = JSON.parse(text);
+                
+                // Попытка найти массив с данными
+                jsonData = extractDataArray(parsed);
+                
+                if (!jsonData || jsonData.length === 0) {
+                    showError('Не удалось найти данные в JSON файле');
+                    showLoading(false);
+                    return;
+                }
+
+                console.log('Найдено записей:', jsonData.length);
+                console.log('Пример первой записи:', jsonData[0]);
+
+                processData();
+                showLoading(false);
+            } catch (error) {
+                showError('Ошибка чтения файла: ' + error.message);
+                showLoading(false);
+            }
+        }
+
+        function extractDataArray(obj) {
+            // Если это уже массив
+            if (Array.isArray(obj)) {
+                return obj;
+            }
+
+            // Если это объект, ищем массивы внутри
+            if (typeof obj === 'object' && obj !== null) {
+                // Проверяем все ключи
+                for (let key in obj) {
+                    if (Array.isArray(obj[key])) {
+                        console.log(`Найден массив в ключе: ${key}`);
+                        return obj[key];
+                    }
+                }
+
+                // Если не нашли массив, возможно это одна запись
+                if (obj.date || obj.date_unixtime) {
+                    return [obj];
+                }
+
+                // Рекурсивный поиск
+                for (let key in obj) {
+                    if (typeof obj[key] === 'object') {
+                        const result = extractDataArray(obj[key]);
+                        if (result && result.length > 0) {
+                            return result;
+                        }
+                    }
+                }
+            }
+
+            return [];
+        }
+
+        function processData() {
+            // Validate data
+            if (!jsonData.length) {
+                showError('JSON файл пуст');
+                return;
+            }
+
+            // Check for date fields
+            const firstItem = jsonData[0];
+            if (!firstItem.date && !firstItem.date_unixtime) {
+                showError('В данных не найдены поля date или date_unixtime');
+                return;
+            }
+
+            // Populate data fields dropdown
+            populateDataFields();
+
+            // Show controls and stats
+            document.getElementById('filterControls').style.display = 'grid';
+            document.getElementById('stats').style.display = 'grid';
+            document.getElementById('chartSection').style.display = 'block';
+            document.getElementById('dataInfo').style.display = 'flex';
+
+            // Update info
+            updateDataInfo();
+            updateStats();
+            updateChart();
+        }
+
+        function populateDataFields() {
+            const dataField = document.getElementById('dataField');
+            const fields = Object.keys(jsonData[0]).filter(key => 
+                key !== 'date' && key !== 'date_unixtime' && typeof jsonData[0][key] === 'number'
+            );
+
+            dataField.innerHTML = '<option value="count">Количество записей</option>';
+            fields.forEach(field => {
+                const option = document.createElement('option');
+                option.value = field;
+                option.textContent = field;
+                dataField.appendChild(option);
+            });
+        }
+
+        function updateDataInfo() {
+            const dataInfo = document.getElementById('dataInfo');
+            const earliest = new Date(Math.min(...jsonData.map(d => getTimestamp(d))));
+            const latest = new Date(Math.max(...jsonData.map(d => getTimestamp(d))));
+            
+            dataInfo.innerHTML = `
+                <div class="data-info-text">
+                    📅 Период: ${earliest.toLocaleString('ru-RU')} - ${latest.toLocaleString('ru-RU')}
+                </div>
+                <div class="data-info-badge">
+                    ${jsonData.length.toLocaleString('ru-RU')} записей
+                </div>
+            `;
+        }
+
+        function updateStats() {
+            const stats = document.getElementById('stats');
+            const timestamps = jsonData.map(d => getTimestamp(d));
+            const earliest = new Date(Math.min(...timestamps));
+            const latest = new Date(Math.max(...timestamps));
+            const duration = (latest - earliest) / 1000 / 60 / 60; // hours
+
+            const avgPerHour = Math.round(jsonData.length / duration);
+            const avgPerDay = Math.round(avgPerHour * 24);
+
+            stats.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${jsonData.length.toLocaleString('ru-RU')}</div>
+                    <div class="stat-label">Всего записей</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${Math.round(duration)}</div>
+                    <div class="stat-label">Часов данных</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${avgPerHour.toLocaleString('ru-RU')}</div>
+                    <div class="stat-label">Записей/час</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${avgPerDay.toLocaleString('ru-RU')}</div>
+                    <div class="stat-label">Записей/день</div>
+                </div>
+            `;
+        }
+
+        function getTimestamp(item) {
+            if (item.date_unixtime) {
+                return parseInt(item.date_unixtime) * 1000;
+            }
+            if (item.date) {
+                return new Date(item.date).getTime();
+            }
+            return 0;
+        }
+
+        function filterDataByTimeRange(data) {
+            const timeRange = document.getElementById('timeRange').value;
+            if (timeRange === 'all') return data;
+
+            const now = Date.now();
+            const ranges = {
+                hour: 60 * 60 * 1000,
+                day: 24 * 60 * 60 * 1000,
+                week: 7 * 24 * 60 * 60 * 1000,
+                month: 30 * 24 * 60 * 60 * 1000
+            };
+
+            const cutoff = now - ranges[timeRange];
+            return data.filter(item => getTimestamp(item) >= cutoff);
+        }
+
+        function aggregateData(data) {
+            const aggregation = document.getElementById('aggregation').value;
+            if (aggregation === 'none') return data;
+
+            const grouped = {};
+            const intervals = {
+                minute: 60 * 1000,
+                hour: 60 * 60 * 1000,
+                day: 24 * 60 * 60 * 1000
+            };
+
+            const interval = intervals[aggregation];
+
+            data.forEach(item => {
+                const timestamp = getTimestamp(item);
+                const key = Math.floor(timestamp / interval) * interval;
+                
+                if (!grouped[key]) {
+                    grouped[key] = {
+                        timestamp: key,
+                        count: 0,
+                        items: []
+                    };
+                }
+                grouped[key].count++;
+                grouped[key].items.push(item);
+            });
+
+            return Object.values(grouped).sort((a, b) => a.timestamp - b.timestamp);
+        }
+
+        function updateChart() {
+            const filteredData = filterDataByTimeRange(jsonData);
+            const aggregatedData = aggregateData(filteredData);
+            
+            const chartType = document.getElementById('chartType').value;
+            const dataField = document.getElementById('dataField').value;
+
+            const labels = aggregatedData.map(item => {
+                const date = new Date(item.timestamp || getTimestamp(item));
+                const agg = document.getElementById('aggregation').value;
+                
+                if (agg === 'day') {
+                    return date.toLocaleDateString('ru-RU');
+                } else if (agg === 'hour') {
+                    return date.toLocaleString('ru-RU', { month: 'short', day: 'numeric', hour: '2-digit' });
+                } else {
+                    return date.toLocaleString('ru-RU');
+                }
+            });
+
+            let values;
+            if (dataField === 'count') {
+                values = aggregatedData.map(item => item.count || 1);
+            } else {
+                values = aggregatedData.map(item => {
+                    if (item.items) {
+                        const sum = item.items.reduce((acc, i) => acc + (parseFloat(i[dataField]) || 0), 0);
+                        return sum / item.items.length;
+                    }
+                    return parseFloat(item[dataField]) || 0;
+                });
+            }
+
+            if (chart) {
+                chart.destroy();
+            }
+
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: chartType,
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: dataField === 'count' ? 'Количество записей' : dataField,
+                        data: values,
+                        backgroundColor: chartType === 'line' ? 'rgba(102, 126, 234, 0.1)' : 'rgba(102, 126, 234, 0.8)',
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 2,
+                        fill: chartType === 'line',
+                        tension: 0.4,
+                        pointRadius: chartType === 'scatter' ? 4 : 2,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Время'
+                            },
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45
+                            }
+                        },
+                        y: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: dataField === 'count' ? 'Количество' : 'Значение'
+                            },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // Event listeners for controls
+        document.getElementById('chartType').addEventListener('change', updateChart);
+        document.getElementById('timeRange').addEventListener('change', updateChart);
+        document.getElementById('aggregation').addEventListener('change', updateChart);
+        document.getElementById('dataField').addEventListener('change', updateChart);
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.innerHTML = `<div class="error">❌ ${message}</div>`;
+        }
+
+        function hideError() {
+            document.getElementById('error').innerHTML = '';
+        }
+    </script>
+</body>
+</html>
